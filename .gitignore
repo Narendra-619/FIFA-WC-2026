@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.env
+.DS_Store
+
+# Models
+*.pkl
+
+# Large datasets (optional)
+data/raw/
+
+# Streamlit
+.streamlit/
