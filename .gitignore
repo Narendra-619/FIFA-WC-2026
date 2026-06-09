@@ -12,6 +12,6 @@ data/raw/
 # Streamlit
 .streamlit/
 
-app.py
+
 
 tournament.py

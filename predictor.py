@@ -3,9 +3,9 @@ import pandas as pd
 import numpy as np
 
 # ── Load model artifacts ──────────────────────────────────────────
-model               = joblib.load("model/wc2026_final_model.pkl")
+model= joblib.load("model/wc2026_final_model.pkl")
 
-median_values       = joblib.load("model/median_values.pkl")
+median_values= joblib.load("model/median_values.pkl")
 final_team_features = pd.read_csv("data/final_team_features.csv")
 feature_cols = model.feature_names_in_.tolist()
 HOSTS = ["United States", "Mexico", "Canada"]
