@@ -4,8 +4,7 @@ __pycache__/
 .env
 .DS_Store
 
-# Models
-*.pkl
+
 
 # Large datasets (optional)
 data/raw/
