@@ -194,5 +194,3 @@ if __name__ == "__main__":
     
     
 
-# MODEL_VERSION = "WC2026_v1.0_FROZEN"
-
