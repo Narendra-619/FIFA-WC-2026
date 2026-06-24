@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: fifa-tournament
+  name: fifa-tournament
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fifa-tournament
+
+  template:
+    metadata:
+      labels:
+        app: fifa-tournament
+    spec:
+      containers:
+      - image: narendra1018/fifa-tournament:v1
+        name: fifa-tournament
+        ports:
+        - containerPort: 8501
+
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+       
+

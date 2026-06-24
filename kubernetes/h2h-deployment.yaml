@@ -1,0 +1,49 @@
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   labels:
+#     app: fifa-h2h
+#   name: fifa-h2h
+# spec:
+#   replicas: 1
+#   selector:
+#     matchLabels:
+#       app: fifa-h2h
+ 
+#   template:
+#     metadata:
+#       labels:
+#         app: fifa-h2h
+#     spec:
+#       containers:
+#       - image: narendra-1018/fifa-h2h:v1
+#         name: fifa-h2h
+#         ports:
+#         - containerPort: 8501
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fifa-h2h
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fifa-h2h
+  template:
+    metadata:
+      labels:
+        app: fifa-h2h
+    spec:
+      containers:
+      - name: fifa-h2h
+        image: narendra1018/fifa-h2h:v1
+        ports:
+        - containerPort: 8501
+
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"

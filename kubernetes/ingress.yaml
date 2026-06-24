@@ -1,0 +1,33 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fifa-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: fifa.local
+    http:
+      paths:
+      - path: /h2h
+        pathType: Prefix
+        backend:
+          service:
+            name: fifa-h2h-svc
+            port:
+              number: 80
+      - path: /groups
+        pathType: Prefix
+        backend:
+          service:
+            name: fifa-groups-svc
+            port:
+              number: 80
+      - path: /tournament
+        pathType: Prefix
+        backend:
+          service:
+            name: fifa-tournament-svc
+            port:
+              number: 80

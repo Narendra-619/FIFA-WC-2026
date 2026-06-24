@@ -18,6 +18,9 @@ A sophisticated machine learning-powered application for predicting FIFA World C
 - [Configuration](#configuration)
 - [File Descriptions](#file-descriptions)
 - [Results & Output](#results--output)
+- [Deployment](#-deployment)
+- [Kubernetes Deployment](#-kubernetes-deployment)
+- [Future Enhancements](#-future-enhancements)
 
 ---
 
@@ -101,6 +104,14 @@ Experience the FIFA World Cup 2026 Prediction System without any setup. Click an
 | **Pickle/Joblib** | Model persistence |
 | **Git** | Version control |
 
+### Infrastructure & DevOps
+| Technology | Purpose |
+|-----------|---------|
+| **Docker** | Containerization of all three services |
+| **Kubernetes** | Container orchestration & autoscaling |
+| **NGINX Ingress** | Path-based traffic routing |
+| **DockerHub** | Container image registry |
+
 ---
 
 ## 📁 Project Structure
@@ -116,6 +127,9 @@ FIFA 2026 Prediction System/
 ├── 📄 test.py                          # Unit tests & validation
 ├── 📄 requirements.txt                 # Python dependencies
 ├── 📄 README.md                        # Project documentation
+├── 📄 Dockerfile.h2h                   # Docker image for Head-to-Head app
+├── 📄 Dockerfile.groups                # Docker image for Group Stage app
+├── 📄 Dockerfile.tournament            # Docker image for Tournament app
 │
 ├── 📂 model/                           # Pre-trained ML models
 │   ├── wc2026_final_model.pkl          # Primary prediction model (Gradient Boosting)
@@ -137,7 +151,15 @@ FIFA 2026 Prediction System/
 │   ├── world-cup-2026-schedule.csv     # Full tournament schedule
 │   └── wc2026_prediction_team_features.csv # Team features used in predictions
 │
-└── 📂 assets/                          # Static resources & media files
+├── 📂 assets/                          # Static resources & media files
+│
+└── 📂 kubernetes/                      # Kubernetes manifests
+    ├── h2h-deployment.yaml
+    ├── groups-deployment.yaml
+    ├── tournament-deployment.yaml
+    ├── ingress.yaml
+    ├── netpol.yaml
+    └── hpa.yaml
 ```
 
 ---
@@ -793,17 +815,525 @@ To deploy your own copy:
 
 ---
 
+## 🐳 Kubernetes Deployment
+
+The FIFA World Cup 2026 Prediction System is fully containerized and deployed on Kubernetes with production-grade orchestration, including autoscaling, load balancing, and network security.
+
+### Docker Images on DockerHub
+
+All three prediction services are containerized and available on DockerHub:
+
+| Service | Image | Registry | Purpose |
+|---------|-------|----------|---------|
+| **Head-to-Head Predictor** | `narendra1018/fifa-h2h:v1` | DockerHub | Match outcome predictions between teams |
+| **Group Stage Predictor** | `narendra1018/fifa-groups:v1` | DockerHub | Group winner probabilities & advancement |
+| **Tournament Predictor** | `narendra1018/fifa-tournament:v1` | DockerHub | Championship & stage progression probabilities |
+
+**Image Specifications**:
+- **Base Image**: `python:3.10-slim` (minimal footprint)
+- **Exposed Port**: `8501` (Streamlit default)
+- **Framework**: Streamlit web application framework
+- **Dependencies**: All packages from `requirements.txt` pre-installed
+
+**Building Images Locally** (if needed):
+```bash
+# Head-to-Head Service
+docker build -t narendra1018/fifa-h2h:v1 -f Dockerfile.h2h .
+docker push narendra1018/fifa-h2h:v1
+
+# Group Stage Service
+docker build -t narendra1018/fifa-groups:v1 -f Dockerfile.groups .
+docker push narendra1018/fifa-groups:v1
+
+# Tournament Service
+docker build -t narendra1018/fifa-tournament:v1 -f Dockerfile.tournament .
+docker push narendra1018/fifa-tournament:v1
+```
+
+### Kubernetes Cluster Setup
+
+#### Prerequisites
+- **Kubernetes Cluster** (Minikube, EKS, AKS, GKE, etc.)
+- **kubectl** CLI configured with cluster access
+- **NGINX Ingress Controller** installed (for ingress routing)
+
+#### Quick Start with Minikube
+```bash
+# Start Minikube cluster
+minikube start --driver=docker
+
+# Enable NGINX Ingress Controller
+minikube addons enable ingress
+
+# Configure Docker environment to use Minikube's Docker daemon
+eval $(minikube docker-env)
+
+# Verify cluster access
+kubectl get nodes
+```
+
+#### Production Cluster Setup
+For AWS EKS, Azure AKS, or Google GKE, follow provider-specific installation guides and ensure:
+- NGINX Ingress Controller is installed: `helm install nginx-ingress nginx-stable/nginx-ingress`
+- Metrics Server is deployed for HPA support: `kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml`
+- DNS is properly configured for ingress routing
+
+### Kubernetes Deployments
+
+Three independent Kubernetes Deployments orchestrate the three prediction services:
+
+#### FIFA Head-to-Head Deployment
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fifa-h2h
+  labels:
+    app: fifa-h2h
+spec:
+  replicas: 1                          # Initial replicas (HPA manages scaling)
+  selector:
+    matchLabels:
+      app: fifa-h2h
+  template:
+    metadata:
+      labels:
+        app: fifa-h2h
+    spec:
+      containers:
+      - name: fifa-h2h
+        image: narendra1018/fifa-h2h:v1
+        ports:
+        - containerPort: 8501          # Streamlit port
+        resources:
+          requests:
+            cpu: "100m"                # Minimum CPU guarantee
+            memory: "128Mi"            # Minimum memory guarantee
+          limits:
+            cpu: "500m"                # Maximum CPU cap
+            memory: "512Mi"            # Maximum memory cap
+```
+
+**Deployment Features**:
+- **Container Image**: `narendra1018/fifa-h2h:v1` - Pre-built from DockerHub
+- **Resource Management**: Requests ensure QoS; Limits prevent resource exhaustion
+- **Port Exposure**: Port 8501 for Streamlit communication
+- **Replication**: Base 1 replica, dynamically scaled by HPA
+
+#### FIFA Group Stage Deployment
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fifa-group
+  labels:
+    app: fifa-group
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fifa-group
+  template:
+    metadata:
+      labels:
+        app: fifa-group
+    spec:
+      containers:
+      - image: narendra1018/fifa-groups:v1
+        name: fifa-groups
+        ports:
+        - containerPort: 8501
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+```
+
+**Features**: Identical structure to Head-to-Head deployment, configured for group stage service.
+
+#### FIFA Tournament Deployment
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fifa-tournament
+  labels:
+    app: fifa-tournament
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fifa-tournament
+  template:
+    metadata:
+      labels:
+        app: fifa-tournament
+    spec:
+      containers:
+      - image: narendra1018/fifa-tournament:v1
+        name: fifa-tournament
+        ports:
+        - containerPort: 8501
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+```
+
+**Features**: Manages championship and stage progression predictions.
+
+### Kubernetes Services
+
+Three Kubernetes Services expose the Deployments:
+
+#### Service Configuration Template
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: fifa-[service]-svc          # fifa-h2h-svc, fifa-groups-svc, fifa-tournament-svc
+  labels:
+    app: fifa-[app-label]
+spec:
+  selector:
+    app: fifa-[app-label]           # Routes to matching Deployment pods
+  ports:
+  - port: 80                        # Service port (exposed to ingress)
+    targetPort: 8501                # Pod port (Streamlit container)
+  type: ClusterIP                   # Internal service, not exposed externally
+```
+
+**Service Details**:
+- **fifa-h2h-svc**: Exposes fifa-h2h Deployment on port 80 → 8501
+- **fifa-groups-svc**: Exposes fifa-group Deployment on port 80 → 8501
+- **fifa-tournament-svc**: Exposes fifa-tournament Deployment on port 80 → 8501
+
+**Service Type**:
+- `ClusterIP`: Internal-only service; traffic routed through Ingress controller
+- No external load balancer created; Ingress handles external routing
+
+### Ingress Controller with Path-Based Routing
+
+The NGINX Ingress Controller routes external traffic to services based on URL paths:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fifa-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /     # Rewrite paths for Streamlit
+spec:
+  ingressClassName: nginx                             # NGINX controller
+  rules:
+  - host: fifa.local                                  # Virtual host
+    http:
+      paths:
+      - path: /h2h                                    # Path: /h2h
+        pathType: Prefix
+        backend:
+          service:
+            name: fifa-h2h-svc                        # Routes to fifa-h2h service
+            port:
+              number: 80
+
+      - path: /groups                                 # Path: /groups
+        pathType: Prefix
+        backend:
+          service:
+            name: fifa-groups-svc                     # Routes to fifa-groups service
+            port:
+              number: 80
+
+      - path: /tournament                             # Path: /tournament
+        pathType: Prefix
+        backend:
+          service:
+            name: fifa-tournament-svc                 # Routes to fifa-tournament service
+            port:
+              number: 80
+```
+
+**Ingress Features**:
+- **Host-Based Routing**: Uses virtual host `fifa.local` (update /etc/hosts or DNS)
+- **Path-Based Routing**: 
+  - `/h2h` → Head-to-Head predictor
+  - `/groups` → Group stage predictor
+  - `/tournament` → Tournament predictor
+- **Path Rewriting**: NGINX rewrites paths transparently for Streamlit compatibility
+- **Load Balancing**: Distributes traffic across replicas within each service
+
+**Accessing Services**:
+```bash
+# Port-forward each service for local testing
+kubectl port-forward svc/fifa-h2h-svc 8501:80
+kubectl port-forward svc/fifa-groups-svc 8502:80
+kubectl port-forward svc/fifa-tournament-svc 8503:80
+
+# Access in browser:
+# http://localhost:8501  → Head-to-Head Predictor
+# http://localhost:8502  → Group Stage Predictor
+# http://localhost:8503  → Tournament Predictor
+```
+
+### Network Policies (Security)
+
+Network Policies enforce zero-trust networking by restricting pod-to-pod communication:
+
+#### Head-to-Head Network Policy
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: isolate-h2h
+spec:
+  podSelector:
+    matchLabels:
+      app: fifa-h2h
+  policyTypes:
+  - Ingress                                           # Only define ingress rules
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: nginx-ingress                          # Only NGINX Ingress can send traffic
+```
+
+**Policy Details**:
+- **Selector**: Applies to pods labeled `app: fifa-h2h`
+- **Type**: Ingress-only (pods can initiate outbound connections)
+- **Source**: Only NGINX Ingress Controller pods can send traffic
+- **Effect**: All other pods are denied unless explicitly allowed
+
+#### Group Stage Network Policy
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: isolate-group
+spec:
+  podSelector:
+    matchLabels:
+      app: fifa-group
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: nginx-ingress
+```
+
+**Identical to Head-to-Head policy**, protecting the group stage service.
+
+#### Tournament Network Policy
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: isolate-tournament
+spec:
+  podSelector:
+    matchLabels:
+      app: fifa-tournament
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: nginx-ingress
+```
+
+**Network Policy Benefits**:
+- ✅ **Pod Isolation**: Services cannot communicate directly with each other
+- ✅ **Attack Surface Reduction**: Only Ingress Controller can access pods
+- ✅ **Compliance**: Enforces least-privilege network access
+- ✅ **Zero-Trust Networking**: Default deny with explicit allow rules
+
+### Horizontal Pod Autoscaling (HPA)
+
+Kubernetes automatically scales deployments based on CPU utilization:
+
+#### Head-to-Head HPA
+```yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: fifa-h2h-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: fifa-h2h                                    # Scales fifa-h2h Deployment
+  minReplicas: 1                                      # Minimum 1 pod
+  maxReplicas: 3                                      # Maximum 3 pods
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50                        # Scale up when CPU > 50%
+```
+
+**HPA Behavior**:
+- **Metric**: CPU utilization percentage (requires Metrics Server)
+- **Scale-Up**: When average CPU exceeds 50%, add a replica
+- **Scale-Down**: When average CPU drops below target, remove a replica
+- **Range**: Between 1 and 3 replicas
+
+#### Group Stage HPA
+```yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: fifa-group-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: fifa-group
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+```
+
+#### Tournament HPA
+```yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: fifa-tournament-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: fifa-tournament
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+```
+
+**Autoscaling Benefits**:
+- ✅ **Automatic Load Balancing**: Scales based on real-time demand
+- ✅ **Cost Efficiency**: Reduces resources during low traffic
+- ✅ **High Availability**: Maintains service availability during traffic spikes
+- ✅ **No Manual Intervention**: Scales transparently without human action
+
+**Monitoring Autoscaling**:
+```bash
+# Watch HPA status in real-time
+kubectl get hpa -w
+
+# View detailed HPA metrics
+kubectl describe hpa fifa-h2h-hpa
+
+# Check current and desired replicas
+kubectl get deployment
+```
+
+### Deploying to Kubernetes
+
+#### Step 1: Apply Deployments
+```bash
+kubectl apply -f kubernetes/groups-deployment.yaml
+kubectl apply -f kubernetes/h2h-deployment.yaml
+kubectl apply -f kubernetes/tournament-deployment.yaml
+```
+
+#### Step 2: Apply Services
+```bash
+kubectl apply -f kubernetes/services.yaml    # If you have a services file
+# Or create services manually:
+kubectl expose deployment fifa-h2h --name=fifa-h2h-svc --port=80 --target-port=8501 --type=ClusterIP
+kubectl expose deployment fifa-group --name=fifa-groups-svc --port=80 --target-port=8501 --type=ClusterIP
+kubectl expose deployment fifa-tournament --name=fifa-tournament-svc --port=80 --target-port=8501 --type=ClusterIP
+```
+
+#### Step 3: Apply Ingress
+```bash
+kubectl apply -f kubernetes/ingress.yaml
+```
+
+#### Step 4: Apply Network Policies
+```bash
+kubectl apply -f kubernetes/netpol.yaml
+```
+
+#### Step 5: Apply HPA
+```bash
+kubectl apply -f kubernetes/hpa.yaml
+```
+
+#### Verify Deployment
+```bash
+# Check deployments
+kubectl get deployments
+
+# Check services
+kubectl get svc
+
+# Check ingress
+kubectl get ingress
+
+# Check network policies
+kubectl get networkpolicies
+
+# Check HPA status
+kubectl get hpa
+
+# View pod logs
+kubectl logs -f deployment/fifa-h2h
+
+# Port-forward for local testing (alternative to Ingress)
+kubectl port-forward svc/fifa-h2h-svc 8501:80
+# Access at http://localhost:8501
+```
+
+### Production Recommendations
+
+- **Resource Requests/Limits**: Adjust CPU and memory based on actual workload (current: conservative 100m-500m CPU)
+- **Replica Strategy**: For production, increase `minReplicas` to 2-3 for high availability
+- **HPA Metrics**: Monitor with Prometheus and adjust `averageUtilization` threshold based on performance
+- **Persistent Storage**: Add PersistentVolumes if prediction results need to be stored across pod restarts
+- **Health Checks**: Add Liveness and Readiness probes to Deployments for automatic pod recovery
+- **Image Registry**: Use private Docker registry or ECR/ACR with imagePullSecrets for security
+- **Namespace Isolation**: Deploy services in separate namespaces and add namespace-level network policies
+- **Logging & Monitoring**: Integrate with ELK Stack, Prometheus, or cloud-native monitoring solutions
+
+---
+
 ## 🎯 Future Enhancements
 
 Potential improvements for future versions:
 
+- [x] Docker containerization for deployment
+- [x] Kubernetes orchestration with autoscaling
 - [ ] API endpoint for programmatic predictions
 - [ ] Historical prediction accuracy tracking
 - [ ] Live match updating with real-time data
 - [ ] Player injury/suspension impact analysis
 - [ ] Enhanced visualizations and heatmaps
 - [ ] Database backend for scalability
-- [ ] Docker containerization for deployment
 - [ ] Model retraining with match updates
 
 ---
