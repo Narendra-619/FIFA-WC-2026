@@ -31,3 +31,11 @@ spec:
             name: fifa-tournament-svc
             port:
               number: 80
+      - path: /results
+        pathType: Prefix
+        backend:
+          service:
+            name: fifa-tournament-results-svc
+            port:
+              number: 80
+        

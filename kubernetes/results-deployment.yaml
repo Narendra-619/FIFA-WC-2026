@@ -1,21 +1,23 @@
-
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: fifa-h2h
+  labels:
+    app: fifa-tournament-results
+  name: fifa-tournament-results
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: fifa-h2h
+      app: fifa-tournament-results
+
   template:
     metadata:
       labels:
-        app: fifa-h2h
+        app: fifa-tournament-results
     spec:
       containers:
-      - name: fifa-h2h
-        image: narendra1018/fifa-h2h:v1
+      - image: narendra1018/results:latest
+        name: fifa-tournament-results
         ports:
         - containerPort: 8501
 
@@ -26,3 +28,5 @@ spec:
           limits:
             cpu: "500m"
             memory: "512Mi"
+       
+
