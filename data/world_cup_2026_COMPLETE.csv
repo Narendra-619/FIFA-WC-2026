@@ -1,0 +1,105 @@
+match_no,group,date,teamA,teamB,predicted_result,actual_result,difference
+1,A,11-06-2026,Mexico,South Africa,Mexico,Mexico,0
+2,A,11-06-2026,South Korea,Czechia,South Korea,South Korea,0
+3,B,12-06-2026,Canada,Bosnia and Herzegovina,Canada,Draw,14.86
+4,D,12-06-2026,USA,Paraguay,USA,USA,0
+5,C,13-06-2026,Haiti,Scotland,Scotland,Scotland,0
+6,D,13-06-2026,Australia,Turkey,Turkey,Australia,14.26
+7,C,13-06-2026,Brazil,Morocco,Brazil,Draw,8.57
+8,B,13-06-2026,Qatar,Switzerland,Switzerland,Draw,22.14
+9,E,14-06-2026,Ivory Coast,Ecuador,Ecaudor,Ivory Coast,10.82
+10,E,14-06-2026,Germany,Curaçao,Germany,Germany,0
+11,F,14-06-2026,Netherlands,Japan,Netherlands,Draw,10.01
+12,F,14-06-2026,Sweden,Tunisia,Sweden,Sweden,0
+13,H,15-06-2026,Saudi Arabia,Uruguay,Draw,Draw,0
+14,H,15-06-2026,Spain,Cabo Verde,Spain,Draw,62.3
+15,G,15-06-2026,IR Iran,New Zealand,IR Iran,Draw,19.21
+16,G,15-06-2026,Belgium,Egypt,Belgium,Draw,13.79
+17,I,16-06-2026,France,Senegal,France,France,0
+18,I,16-06-2026,Iraq,Norway,Norway,Norway,0
+19,J,16-06-2026,Argentina,Algeria,Argentina,Argentina,0
+20,J,16-06-2026,Austria,Jordan,Austria,Austria,0
+21,L,17-06-2026,Ghana,Panama,Panama,Ghana,16.7
+22,L,17-06-2026,England,Croatia,England,England,0
+23,K,17-06-2026,Portugal,Congo DR,Portugal,Draw,57.5
+24,K,17-06-2026,Uzbekistan,Colombia,Colombia,Colombia,0
+25,A,18-06-2026,Czechia,South Africa,Czechia,Draw,16.57
+26,B,18-06-2026,Switzerland,Bosnia and Herzegovina,Switzerland,Switzerland,0
+27,B,18-06-2026,Canada,Qatar,Canada,Canada,0
+28,A,18-06-2026,Mexico,South Korea,Mexico,Mexico,0
+29,C,19-06-2026,Brazil,Haiti,Brazil,Brazil,0
+30,C,19-06-2026,Scotland,Morocco,Morocco,Morocco,0
+31,D,19-06-2026,Turkey,Paraguay,Turkey,Paraguay,22.16
+32,D,19-06-2026,USA,Australia,USA,USA,0
+33,E,20-06-2026,Germany,Ivory Coast,Germany,Germany,0
+34,E,20-06-2026,Ecuador,Curaçao,Ecuador,Draw,48.26
+35,F,20-06-2026,Netherlands,Sweden,Netherlands,Netherlands,0
+36,F,20-06-2026,Tunisia,Japan,Japan,Japan,0
+37,H,21-06-2026,Uruguay,Cabo Verde,Uruguay,Draw,41.35
+38,H,21-06-2026,Spain,Saudi Arabia,Spain,Spain,0
+39,G,21-06-2026,Belgium,IR Iran,Belgium,Draw,8.86
+40,G,21-06-2026,New Zealand,Egypt,Draw,Egypt,6.5
+41,I,22-06-2026,Norway,Senegal,Senegal,Norway,2.89
+42,I,22-06-2026,France,Iraq,France,France,0
+43,J,22-06-2026,Argentina,Austria,Argentina,Argentina,0
+44,J,22-06-2026,Jordan,Algeria,Algeria,Algeria,0
+45,L,23-06-2026,England,Ghana,England,Draw,57.87
+46,L,23-06-2026,Panama,Croatia,Croatia,Croatia,0
+47,K,23-06-2026,Portugal,Uzbekistan,Portugal,Portugal,0
+48,K,23-06-2026,Colombia,Congo DR,Colombia,Colombia,0
+49,C,24-06-2026,Scotland,Brazil,Brazil,Brazil,0
+50,C,24-06-2026,Morocco,Haiti,Morocco,Morocco,0
+51,B,24-06-2026,Switzerland,Canada,Switzerland,Switzerland,0
+52,B,24-06-2026,Bosnia and Herzegovina,Qatar,Bosnia and Herzegovina,Bosnia and Herzegovina,0
+53,A,24-06-2026,Czechia,Mexico,Mexico,Mexico,0
+54,A,24-06-2026,South Africa,South Korea,South Korea,South Africa,33.33
+55,E,25-06-2026,Curaçao,Ivory Coast,Ivory Coast,Ivory Coast,0
+56,E,25-06-2026,Ecuador,Germany,Germany,Ecuador,26.05
+57,F,25-06-2026,Japan,Sweden,Japan,Draw,2.14
+58,F,25-06-2026,Tunisia,Netherlands,Netherlands,Netherlands,0
+59,D,25-06-2026,Turkey,USA,Turkey,Turkey,0
+60,D,25-06-2026,Paraguay,Australia,Draw,Draw,0
+61,I,26-06-2026,Norway,France,France,France,0
+62,I,26-06-2026,Senegal,Iraq,Senegal,Senegal,0
+63,G,26-06-2026,Egypt,IR Iran,Draw,Iran,4.83
+64,G,26-06-2026,New Zealand,Belgium,Belgium,Belgium,0
+65,H,26-06-2026,Cabo Verde,Saudi Arabia,Saudi Arabia,Draw,11.47
+66,H,26-06-2026,Uruguay,Spain,Spain,Spain,0
+67,L,27-06-2026,Panama,England,England,England,0
+68,L,27-06-2026,Croatia,Ghana,Croatia,Croatia,0
+69,J,27-06-2026,Algeria,Austria,Austria,Draw,3.73
+70,J,27-06-2026,Jordan,Argentina,Argentina,Argentina,0
+71,K,27-06-2026,Colombia,Portugal,Colombia,Draw,11.37
+72,K,27-06-2026,Congo DR,Uzbekistan,Congo DR,Congo DR,0
+73,Round of 32,28-06-2026,South Africa,Canada,Canada,Canada,0
+74,Round of 32,29-06-2026,Germany,Paraguay,Germany,Paraguay,37.14
+75,Round of 32,29-06-2026,Netherlands,Morocco,Netherlands,Morocco,17.63
+76,Round of 32,29-06-2026,Brazil,Japan,Brazil,Brazil,0
+77,Round of 32,30-06-2026,France,Sweden,France,France,0
+78,Round of 32,30-06-2026,Ivory Coast,Norway,Norway,Norway,0
+79,Round of 32,30-06-2026,Mexico,Ecuador,Mexico,Mexico,0
+80,Round of 32,01-07-2026,England,DR Congo,England,England,0
+81,Round of 32,01-07-2026,USA,Bosnia and Herzegovina,USA,USA,0
+82,Round of 32,01-07-2026,Belgium,Senegal,Belgium,Belgium,0
+83,Round of 32,02-07-2026,Portugal,Croatia,Portugal,Portugal,0
+84,Round of 32,02-07-2026,Spain,Austria,Spain,Spain,0
+85,Round of 32,02-07-2026,Switzerland,Algeria,Switzerland,Switzerland,0
+86,Round of 32,03-07-2026,Argentina,Cabo Verde,Argentina,Argentina,0
+87,Round of 32,03-07-2026,Colombia,Ghana,Colombia,Colombia,0
+88,Round of 32,03-07-2026,Australia,Egypt,Egypt,Egypt,0
+89,Round of 16,04-07-2026,Paraguay,France,France,France,0
+90,Round of 16,04-07-2026,Canada,Morocco,Morocco,Morocco,0
+91,Round of 16,05-07-2026,Brazil,Norway,Brazil,Norway,26.59
+92,Round of 16,05-07-2026,Mexico,England,England,England,0
+93,Round of 16,06-07-2026,Portugal,Spain,Spain,Spain,0
+94,Round of 16,06-07-2026,USA,Belgium,Belgium,Belgium,0
+95,Round of 16,07-07-2026,Argentina,Egypt,Argentina,Argentina,0
+96,Round of 16,07-07-2026,Switzerland,Colombia,Colombia,Switzerland,11.66
+97,Quarter-finals,09-07-2026,France,Morocco,France,France,0
+98,Quarter-finals,10-07-2026,Spain,Belgium,Spain,Spain,0
+99,Quarter-finals,11-07-2026,Norway,England,England,England,0
+100,Quarter-finals,11-07-2026,Argentina,Switzerland,Argentina,Argentina,0
+101,Semi-finals,14-07-2026,France,Spain,France,Spain,1.31
+102,Semi-finals,15-07-2026,England,Argentina,Argentina,Argentina,0
+103,Third Place,18-07-2026,France,England,France,England,7.7
+104,Final,19-07-2026,Spain,Argentina,Argentina,Spain,4.54
