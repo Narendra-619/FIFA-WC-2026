@@ -3,7 +3,8 @@ kind: Ingress
 metadata:
   name: fifa-ingress
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
 spec:
   ingressClassName: nginx
   rules:
@@ -17,7 +18,7 @@ spec:
             name: fifa-h2h-svc
             port:
               number: 80
-      - path: /groups
+      - path: /group-stage
         pathType: Prefix
         backend:
           service:
@@ -38,4 +39,10 @@ spec:
             name: fifa-tournament-results-svc
             port:
               number: 80
-        
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: fifa-main-page-svc
+            port:
+              number: 80

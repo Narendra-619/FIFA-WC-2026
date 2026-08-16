@@ -17,7 +17,7 @@ metadata:
   name: fifa-groups-svc
 spec:
   selector:
-    app: fifa-groups
+    app: fifa-group
   ports:
     - port: 80
       targetPort: 8501
@@ -47,4 +47,20 @@ spec:
   ports:
     - port: 80
       targetPort: 8501
+  type: ClusterIP
+
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: fifa-main-page-svc
+
+spec:
+  selector:
+    app: fifa-main-page
+  ports:
+    - port: 80
+      targetPort: 80
   type: ClusterIP
