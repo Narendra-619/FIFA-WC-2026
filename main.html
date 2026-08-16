@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FIFA World Cup 2026 Predictor</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: radial-gradient(circle at top, #1a2a3a 0%, #0b0f14 65%);
+    color: #f0f0f0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 70px 20px;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 60px;
+  }
+
+  .header .tag {
+    display: inline-block;
+    background: rgba(0, 200, 120, 0.15);
+    color: #2ecc71;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border-radius: 20px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(46, 204, 113, 0.3);
+  }
+
+  .header h1 {
+    font-size: 2.6rem;
+    font-weight: 700;
+    background: linear-gradient(90deg, #ffffff, #9fd8c7);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .header p {
+    margin-top: 10px;
+    color: #9aa5b1;
+    font-size: 1.05rem;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 24px;
+    max-width: 900px;
+    width: 100%;
+  }
+
+  a.card {
+    position: relative;
+    display: block;
+    background: linear-gradient(145deg, #1c2530, #141a22);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px;
+    padding: 32px 26px;
+    text-decoration: none;
+    color: #fff;
+    overflow: hidden;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  }
+
+  a.card::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #2ecc71, #3498db);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s ease;
+  }
+
+  a.card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+    border-color: rgba(46, 204, 113, 0.4);
+  }
+
+  a.card:hover::before { transform: scaleX(1); }
+
+  .icon {
+    font-size: 28px;
+    margin-bottom: 16px;
+    display: inline-block;
+  }
+
+  .card h2 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .card p {
+    font-size: 0.9rem;
+    color: #9aa5b1;
+    line-height: 1.4;
+  }
+
+  .footer {
+    margin-top: 60px;
+    color: #5c6773;
+    font-size: 0.8rem;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <span class="tag">World Cup 2026</span>
+    <h1>FIFA WORLD CUP PREDICTOR 2026</h1>
+    <p>ML-powered predictions across every stage of the tournament</p>
+  </div>
+
+  <div class="grid">
+    <a class="card" href="/h2h/">
+      <span class="icon">⚔️</span>
+      <h2>Head-to-Head Predictor</h2>
+      <p>Compare any two teams and predict the outcome of a direct matchup.</p>
+    </a>
+
+    <a class="card" href="/group-stage/">
+      <span class="icon">🏆</span>
+      <h2>Group Stage Analyzer</h2>
+      <p>Simulate group standings and see who advances to the knockouts.</p>
+    </a>
+
+    <a class="card" href="/tournament/">
+      <span class="icon">🌍</span>
+      <h2>Tournament Winner Predictor</h2>
+      <p>Run the full bracket forward and predict the eventual champion.</p>
+    </a>
+
+    <a class="card" href="/results/">
+      <span class="icon">📊</span>
+      <h2>Results Dashboard</h2>
+      <p>Track model accuracy and past prediction outcomes.</p>
+    </a>
+  </div>
+
+  <div class="footer">
+    Built with scikit-learn · Deployed on AWS EKS
+  </div>
+
+</body>
+</html>
