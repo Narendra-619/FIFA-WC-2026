@@ -16,7 +16,7 @@ spec:
         app: fifa-tournament-results
     spec:
       containers:
-      - image: 276096488420.dkr.ecr.ap-south-1.amazonaws.com/fifa/tournament-results:3
+      - image: 276096488420.dkr.ecr.ap-south-1.amazonaws.com/fifa/tournament-results:5
         name: fifa-tournament-results
         ports:
         - containerPort: 8501
