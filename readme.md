@@ -1363,4 +1363,4 @@ Potential improvements for future versions:
 *Crafted with ⚽ for the FIFA World Cup 2026 Prediction System*
 
 
-more changes to come
+more changes to come and go
