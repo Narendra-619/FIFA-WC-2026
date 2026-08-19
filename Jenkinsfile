@@ -23,6 +23,19 @@ pipeline {
             }
         }
 
+        stage('Skip Check') {
+            steps {
+                script {
+                    def lastCommit = sh(script: "git log -1 --pretty=%B", returnStdout: true).trim()
+                    if (lastCommit.contains('[skip ci]')) {
+                        echo "Last commit was a CI manifest update — skipping build to avoid a loop."
+                        currentBuild.result = 'NOT_BUILT'
+                        error("Skipping: manifest-only commit")
+                    }
+                }
+            }
+        }
+
         stage('Basic Tests') {
             steps {
                 sh '''
@@ -101,6 +114,27 @@ pipeline {
                 '''
             }
         }
+
+                stage('Update K8s Manifests') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'github-creds', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
+                    sh '''
+                        git config user.email "jenkins-ci@fifa-predictor.local"
+                        git config user.name "Jenkins CI"
+
+                        sed -i "s|image: .*fifa/main-page:.*|image: ${IMAGE_MAIN}:${IMAGE_TAG}|" kubernetes/deployments/main-page.yaml
+                        sed -i "s|image: .*fifa/group-stage:.*|image: ${IMAGE_GROUPS}:${IMAGE_TAG}|" kubernetes/deployments/groups-deployment.yaml
+                        sed -i "s|image: .*fifa/h2h:.*|image: ${IMAGE_H2H}:${IMAGE_TAG}|" kubernetes/deployments/h2h-deployment.yaml
+                        sed -i "s|image: .*fifa/tournament:.*|image: ${IMAGE_TOURNAMENT}:${IMAGE_TAG}|" kubernetes/deployments/tournament-deployment.yaml
+                        sed -i "s|image: .*fifa/tournament-results:.*|image: ${IMAGE_RESULTS}:${IMAGE_TAG}|" kubernetes/deployments/results-deployment.yaml
+
+                        git add kubernetes/deployments/*.yaml
+                        git commit -m "ci: update image tags to build ${IMAGE_TAG} [skip ci]"
+                        git push https://${GIT_USER}:${GIT_PASS}@github.com/Narendra-619/FIFA-WC-2026.git HEAD:master
+                    '''
+                }
+            }
+        }
     }
 
     post {
@@ -108,7 +142,6 @@ pipeline {
             echo "CI pipeline completed successfully!"
             echo "Images pushed with tag: ${IMAGE_TAG}"
         }
-
         failure {
             echo "Pipeline failed. Check the stage logs above."
         }
