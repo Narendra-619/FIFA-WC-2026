@@ -1,21 +1,23 @@
-
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: fifa-h2h
+  labels:
+    app: fifa-tournament
+  name: fifa-tournament
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: fifa-h2h
+      app: fifa-tournament
+
   template:
     metadata:
       labels:
-        app: fifa-h2h
+        app: fifa-tournament
     spec:
       containers:
-      - name: fifa-h2h
-        image: narendra1018/fifa-h2h:v1
+      - image: 276096488420.dkr.ecr.ap-south-1.amazonaws.com/fifa/tournament:v3
+        name: fifa-tournament
         ports:
         - containerPort: 8501
 
@@ -26,3 +28,5 @@ spec:
           limits:
             cpu: "500m"
             memory: "512Mi"
+       
+

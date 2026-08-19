@@ -1,25 +1,24 @@
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  labels:
-    app: fifa-group
-  name: fifa-group
+  name: fifa-h2h
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: fifa-group
-
+      app: fifa-h2h
   template:
     metadata:
       labels:
-        app: fifa-group
+        app: fifa-h2h
     spec:
       containers:
-      - image: narendra1018/fifa-groups:v2
-        name: fifa-groups
+      - name: fifa-h2h
+        image: 276096488420.dkr.ecr.ap-south-1.amazonaws.com/fifa/h2h:v3
         ports:
         - containerPort: 8501
+
         resources:
           requests:
             cpu: "100m"

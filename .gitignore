@@ -15,3 +15,22 @@ data/raw/
 
 
 tournament.py
+
+# Private keys & secrets
+Jenkins.pem
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.p8
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+
+# Environment files (all variants)
+.env.*
