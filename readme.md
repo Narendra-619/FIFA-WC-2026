@@ -19,7 +19,9 @@ A sophisticated machine learning-powered application for predicting FIFA World C
 - [File Descriptions](#file-descriptions)
 - [Results & Output](#results--output)
 - [Deployment](#-deployment)
+- [Infrastructure as Code (Terraform)](#-infrastructure-as-code-terraform)
 - [Kubernetes Deployment](#-kubernetes-deployment)
+- [CI/CD Pipeline](#cicd-pipeline)
 - [Future Enhancements](#-future-enhancements)
 
 ---
@@ -107,10 +109,14 @@ Experience the FIFA World Cup 2026 Prediction System without any setup. Click an
 ### Infrastructure & DevOps
 | Technology | Purpose |
 |-----------|---------|
-| **Docker** | Containerization of all three services |
-| **Kubernetes** | Container orchestration & autoscaling |
-| **NGINX Ingress** | Path-based traffic routing |
-| **DockerHub** | Container image registry |
+| **Docker** | Containerization of all five services |
+| **Kubernetes (Amazon EKS)** | Managed Kubernetes orchestration & autoscaling |
+| **Terraform** | Infrastructure as Code (IaC) for all AWS resources |
+| **Amazon ECR** | Private container image registry |
+| **AWS Load Balancer Controller** | Provisions a native Application Load Balancer (ALB) for path-based routing |
+| **Jenkins** | CI pipeline (build, test, push images, update manifests) |
+| **ArgoCD** | GitOps continuous delivery on EKS |
+| **Amazon S3 + DynamoDB** | Terraform remote state backend & state locking |
 
 ---
 
@@ -130,6 +136,8 @@ FIFA 2026 Prediction System/
 ├── 📄 Dockerfile.h2h                   # Docker image for Head-to-Head app
 ├── 📄 Dockerfile.groups                # Docker image for Group Stage app
 ├── 📄 Dockerfile.tournament            # Docker image for Tournament app
+├── 📄 Dockerfile.results               # Docker image for Tournament Results app
+├── 📄 Dockerfile.main                  # Docker image for Main Page (nginx:alpine)
 │
 ├── 📂 model/                           # Pre-trained ML models
 │   ├── wc2026_final_model.pkl          # Primary prediction model (Gradient Boosting)
@@ -154,9 +162,13 @@ FIFA 2026 Prediction System/
 ├── 📂 assets/                          # Static resources & media files
 │
 └── 📂 kubernetes/                      # Kubernetes manifests
-    ├── h2h-deployment.yaml
-    ├── groups-deployment.yaml
-    ├── tournament-deployment.yaml
+    ├── 📂 deployments/
+    │   ├── main-page.yaml
+    │   ├── groups-deployment.yaml
+    │   ├── h2h-deployment.yaml
+    │   ├── tournament-deployment.yaml
+    │   └── results-deployment.yaml
+    ├── services.yaml
     ├── ingress.yaml
     ├── netpol.yaml
     └── hpa.yaml
@@ -815,74 +827,212 @@ To deploy your own copy:
 
 ---
 
+## 🏗 Infrastructure as Code (Terraform)
+
+All AWS infrastructure for the production deployment is provisioned and managed with **Terraform**. Every resource — VPC, subnets, EKS cluster, node group, ECR repositories, IAM roles, and the state backend — is defined declaratively in code under `AWS-TF/` and versioned alongside the application.
+
+### Terraform State Management
+
+Terraform stores its state remotely in an **S3 bucket** and uses a **DynamoDB table** for state locking, so the state file is shared safely across the team and CI/CD without corruption:
+
+```hcl
+terraform {
+  backend "s3" {
+    bucket         = "<TF_STATE_BUCKET>"   # S3 bucket storing terraform.tfstate
+    key            = "prod/terraform.tfstate"       # State file key within the bucket
+    region         = "ap-south-1"
+    encrypt        = true
+    dynamodb_table = "terraform-locks"              # DynamoDB table for state locking
+  }
+}
+```
+
+- **Amazon S3**: Remote, encrypted storage of the `terraform.tfstate` file.
+- **DynamoDB**: Lock table prevents concurrent `terraform apply` runs from corrupting state.
+
+### Modules
+
+Infrastructure is organized into reusable modules under `AWS-TF/modules/`:
+
+| Module | Resources | Key Details |
+|--------|-----------|-------------|
+| **VPC** | VPC, 2 public + 2 private subnets, Internet Gateway, NAT Gateway, route tables | Subnets span 2 Availability Zones for high availability |
+| **EKS** | EKS cluster, IAM roles, managed node group | References the VPC module's private subnet outputs |
+| **ECR** | 5 private image repositories | One repository per service |
+
+#### VPC Module
+
+Creates a custom VPC with 2 public subnets (for the ALB and NAT Gateway) and 2 private subnets (for the EKS worker nodes) spread across 2 AZs:
+
+```hcl
+module "vpc" {
+  source               = "./modules/vpc"
+  environment          = var.environment
+  project              = var.project
+  vpc_cidr             = var.vpc_cidr
+  availability_zones   = var.availability_zones
+  public_subnet_cidrs  = var.public_subnet_cidrs
+  private_subnet_cidrs = var.private_subnet_cidrs
+  enable_nat_gateway   = true
+  single_nat_gateway   = var.single_nat_gateway
+  tags                 = var.tags
+}
+```
+
+- **Internet Gateway**: Allows public subnets to reach the internet.
+- **NAT Gateway**: Gives private subnets outbound internet access without exposing them.
+- **Route Tables**: One public route table (IGW default route) and one private route table (NAT default route).
+
+#### EKS Module
+
+Provisions the managed EKS cluster and its worker nodes, wiring them into the VPC's **private subnets** so the cluster is not directly exposed to the internet:
+
+```hcl
+module "eks" {
+  source         = "./modules/eks"
+  cluster_name   = "${var.environment}-${var.project}-eks"
+  vpc_id         = module.vpc.vpc_id
+  subnet_ids     = module.vpc.private_subnet_ids   # Private subnets from the VPC module
+  instance_types = var.eks_instance_types
+  min_size       = var.eks_min_size
+  max_size       = var.eks_max_size
+  desired_size   = var.eks_desired_size
+}
+```
+
+- **EKS Cluster**: Managed control plane with IAM roles for the cluster and node group.
+- **Managed Node Group**: Auto-scaling worker nodes sized via `min/max/desired`.
+- **Subnets**: Deployed into the VPC module's private subnet outputs for security.
+
+#### ECR Repositories
+
+Five private ECR repositories host the container images, one per service:
+
+```hcl
+resource "aws_ecr_repository" "fifa" {
+  for_each = toset(["main-page", "h2h", "group-stage", "tournament", "tournament-results"])
+
+  name                 = "fifa/${each.value}"
+  image_tag_mutability = "IMMUTABLE"
+  encryption_configuration {
+    encryption_type = "AES256"
+  }
+}
+```
+
+### Applying Infrastructure
+
+```bash
+cd AWS-TF
+terraform init        # Initialize providers & backend
+terraform plan        # Preview changes
+terraform apply       # Create the entire AWS infrastructure
+```
+
+---
+
 ## 🐳 Kubernetes Deployment
 
-The FIFA World Cup 2026 Prediction System is fully containerized and deployed on Kubernetes with production-grade orchestration, including autoscaling, load balancing, and network security.
+The FIFA World Cup 2026 Prediction System runs as **five** containerized components on **Amazon EKS**, orchestrated with production-grade autoscaling, load balancing, and network security.
 
-### Docker Images on DockerHub
+### Components
 
-All three prediction services are containerized and available on DockerHub:
+| Component | Purpose |
+|-----------|---------|
+| **main-page** | Static landing page (nginx:alpine) linking to the three prediction apps and the results page |
+| **h2h** | Head-to-Head match outcome predictions |
+| **group-stage** | Group winner probabilities & advancement odds |
+| **tournament** | Championship & stage progression probabilities |
+| **tournament-results** | Pre-computed tournament results viewer |
 
-| Service | Image | Registry | Purpose |
-|---------|-------|----------|---------|
-| **Head-to-Head Predictor** | `narendra1018/fifa-h2h:v1` | DockerHub | Match outcome predictions between teams |
-| **Group Stage Predictor** | `narendra1018/fifa-groups:v1` | DockerHub | Group winner probabilities & advancement |
-| **Tournament Predictor** | `narendra1018/fifa-tournament:v1` | DockerHub | Championship & stage progression probabilities |
+### Container Images on Amazon ECR
+
+All five images are built, tagged, and pushed to **Amazon ECR** (account `<AWS_ACCOUNT_ID>`, region `ap-south-1`). Image tags are the **Jenkins `BUILD_NUMBER`** (e.g. `:1`, `:2`, `:3`), so every CI run produces a uniquely identifiable image.
+
+| Service | Image |
+|---------|-------|
+| **Main Page** | `<AWS_ACCOUNT_ID>.dkr.ecr.ap-south-1.amazonaws.com/fifa/main-page` |
+| **Head-to-Head Predictor** | `<AWS_ACCOUNT_ID>.dkr.ecr.ap-south-1.amazonaws.com/fifa/h2h` |
+| **Group Stage Predictor** | `<AWS_ACCOUNT_ID>.dkr.ecr.ap-south-1.amazonaws.com/fifa/group-stage` |
+| **Tournament Predictor** | `<AWS_ACCOUNT_ID>.dkr.ecr.ap-south-1.amazonaws.com/fifa/tournament` |
+| **Tournament Results** | `<AWS_ACCOUNT_ID>.dkr.ecr.ap-south-1.amazonaws.com/fifa/tournament-results` |
 
 **Image Specifications**:
-- **Base Image**: `python:3.10-slim` (minimal footprint)
-- **Exposed Port**: `8501` (Streamlit default)
-- **Framework**: Streamlit web application framework
+- **Main Page**: `nginx:alpine` base, serves static content, exposes port `80`
+- **Prediction Apps**: `python:3.10-slim` base, Streamlit framework, exposes port `8501`
 - **Dependencies**: All packages from `requirements.txt` pre-installed
-
-**Building Images Locally** (if needed):
-```bash
-# Head-to-Head Service
-docker build -t narendra1018/fifa-h2h:v1 -f Dockerfile.h2h .
-docker push narendra1018/fifa-h2h:v1
-
-# Group Stage Service
-docker build -t narendra1018/fifa-groups:v1 -f Dockerfile.groups .
-docker push narendra1018/fifa-groups:v1
-
-# Tournament Service
-docker build -t narendra1018/fifa-tournament:v1 -f Dockerfile.tournament .
-docker push narendra1018/fifa-tournament:v1
-```
 
 ### Kubernetes Cluster Setup
 
 #### Prerequisites
-- **Kubernetes Cluster** (Minikube, EKS, AKS, GKE, etc.)
+- **Amazon EKS** cluster (provisioned by Terraform)
 - **kubectl** CLI configured with cluster access
-- **NGINX Ingress Controller** installed (for ingress routing)
+- **AWS Load Balancer Controller** installed (provisions the ALB)
 
-#### Quick Start with Minikube
+#### Cluster Access
 ```bash
-# Start Minikube cluster
-minikube start --driver=docker
-
-# Enable NGINX Ingress Controller
-minikube addons enable ingress
-
-# Configure Docker environment to use Minikube's Docker daemon
-eval $(minikube docker-env)
+# Configure kubectl for the EKS cluster
+aws eks update-kubeconfig --region ap-south-1 --name <cluster-name>
 
 # Verify cluster access
 kubectl get nodes
 ```
 
-#### Production Cluster Setup
-For AWS EKS, Azure AKS, or Google GKE, follow provider-specific installation guides and ensure:
-- NGINX Ingress Controller is installed: `helm install nginx-ingress nginx-stable/nginx-ingress`
-- Metrics Server is deployed for HPA support: `kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml`
-- DNS is properly configured for ingress routing
+#### AWS Load Balancer Controller
+
+The **AWS Load Balancer Controller** manages Application Load Balancers natively — when an Ingress is created, the controller provisions an ALB in AWS automatically:
+
+```bash
+# Deploy the controller via Helm
+helm repo add eks https://aws.github.io/eks-charts
+helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
+  -n kube-system \
+  --set clusterName=<cluster-name> \
+  --set serviceAccount.create=false \
+  --set serviceAccount.name=aws-load-balancer-controller
+```
+
+**Controller Setup Details**:
+- **ServiceAccount**: Created for the controller with an IRSA (IAM Roles for Service Accounts) annotated IAM role granting `ElasticLoadBalancing`, `EC2`, and `IAM` permissions.
+- **Subnet Discovery**: Public subnets are tagged `kubernetes.io/role/elb=1` so the controller auto-discovers them and places the ALB there.
 
 ### Kubernetes Deployments
 
-Three independent Kubernetes Deployments orchestrate the three prediction services:
+Five Deployments orchestrate the five services. Example — the **Main Page** (nginx on port 80):
 
-#### FIFA Head-to-Head Deployment
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fifa-main-page
+  labels:
+    app: fifa-main-page
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fifa-main-page
+  template:
+    metadata:
+      labels:
+        app: fifa-main-page
+    spec:
+      containers:
+      - name: fifa-main-page
+        image: <AWS_ACCOUNT_ID>.dkr.ecr.ap-south-1.amazonaws.com/fifa/main-page:13
+        ports:
+        - containerPort: 80             # nginx port
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "100m"
+            memory: "128Mi"
+```
+
+Example — the **Head-to-Head** Streamlit app (port 8501):
+
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -891,7 +1041,7 @@ metadata:
   labels:
     app: fifa-h2h
 spec:
-  replicas: 1                          # Initial replicas (HPA manages scaling)
+  replicas: 1
   selector:
     matchLabels:
       app: fifa-h2h
@@ -902,49 +1052,11 @@ spec:
     spec:
       containers:
       - name: fifa-h2h
-        image: narendra1018/fifa-h2h:v1
+        image: <AWS_ACCOUNT_ID>.dkr.ecr.ap-south-1.amazonaws.com/fifa/h2h:13
         ports:
         - containerPort: 8501          # Streamlit port
         resources:
           requests:
-            cpu: "100m"                # Minimum CPU guarantee
-            memory: "128Mi"            # Minimum memory guarantee
-          limits:
-            cpu: "500m"                # Maximum CPU cap
-            memory: "512Mi"            # Maximum memory cap
-```
-
-**Deployment Features**:
-- **Container Image**: `narendra1018/fifa-h2h:v1` - Pre-built from DockerHub
-- **Resource Management**: Requests ensure QoS; Limits prevent resource exhaustion
-- **Port Exposure**: Port 8501 for Streamlit communication
-- **Replication**: Base 1 replica, dynamically scaled by HPA
-
-#### FIFA Group Stage Deployment
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: fifa-group
-  labels:
-    app: fifa-group
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: fifa-group
-  template:
-    metadata:
-      labels:
-        app: fifa-group
-    spec:
-      containers:
-      - image: narendra1018/fifa-groups:v1
-        name: fifa-groups
-        ports:
-        - containerPort: 8501
-        resources:
-          requests:
             cpu: "100m"
             memory: "128Mi"
           limits:
@@ -952,75 +1064,33 @@ spec:
             memory: "512Mi"
 ```
 
-**Features**: Identical structure to Head-to-Head deployment, configured for group stage service.
+The remaining three Deployments (`group-stage`, `tournament`, `tournament-results`) follow the identical structure with their matching ECR image and `app` label.
 
-#### FIFA Tournament Deployment
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: fifa-tournament
-  labels:
-    app: fifa-tournament
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: fifa-tournament
-  template:
-    metadata:
-      labels:
-        app: fifa-tournament
-    spec:
-      containers:
-      - image: narendra1018/fifa-tournament:v1
-        name: fifa-tournament
-        ports:
-        - containerPort: 8501
-        resources:
-          requests:
-            cpu: "100m"
-            memory: "128Mi"
-          limits:
-            cpu: "500m"
-            memory: "512Mi"
-```
-
-**Features**: Manages championship and stage progression predictions.
+| Deployment | Manifest | Image Path | Container Port |
+|------------|----------|------------|----------------|
+| **Main Page** | `deployments/main-page.yaml` | `fifa/main-page` | 80 |
+| **Head-to-Head** | `deployments/h2h-deployment.yaml` | `fifa/h2h` | 8501 |
+| **Group Stage** | `deployments/groups-deployment.yaml` | `fifa/group-stage` | 8501 |
+| **Tournament** | `deployments/tournament-deployment.yaml` | `fifa/tournament` | 8501 |
+| **Results** | `deployments/results-deployment.yaml` | `fifa/tournament-results` | 8501 |
 
 ### Kubernetes Services
 
-Three Kubernetes Services expose the Deployments:
+Five `ClusterIP` Services expose the Deployments internally (traffic is routed to them by the ALB):
 
-#### Service Configuration Template
-```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: fifa-[service]-svc          # fifa-h2h-svc, fifa-groups-svc, fifa-tournament-svc
-  labels:
-    app: fifa-[app-label]
-spec:
-  selector:
-    app: fifa-[app-label]           # Routes to matching Deployment pods
-  ports:
-  - port: 80                        # Service port (exposed to ingress)
-    targetPort: 8501                # Pod port (Streamlit container)
-  type: ClusterIP                   # Internal service, not exposed externally
-```
+| Service | Selector | Port → TargetPort |
+|---------|----------|-------------------|
+| **fifa-main-page-svc** | `app: fifa-main-page` | 80 → 80 |
+| **fifa-h2h-svc** | `app: fifa-h2h` | 80 → 8501 |
+| **fifa-groups-svc** | `app: fifa-group` | 80 → 8501 |
+| **fifa-tournament-svc** | `app: fifa-tournament` | 80 → 8501 |
+| **fifa-tournament-results-svc** | `app: fifa-tournament-results` | 80 → 8501 |
 
-**Service Details**:
-- **fifa-h2h-svc**: Exposes fifa-h2h Deployment on port 80 → 8501
-- **fifa-groups-svc**: Exposes fifa-group Deployment on port 80 → 8501
-- **fifa-tournament-svc**: Exposes fifa-tournament Deployment on port 80 → 8501
+**Service Type**: `ClusterIP` — internal-only; the ALB handles external traffic.
 
-**Service Type**:
-- `ClusterIP`: Internal-only service; traffic routed through Ingress controller
-- No external load balancer created; Ingress handles external routing
+### Ingress with AWS Load Balancer (ALB)
 
-### Ingress Controller with Path-Based Routing
-
-The NGINX Ingress Controller routes external traffic to services based on URL paths:
+The AWS Load Balancer Controller provisions a native **Application Load Balancer (ALB)** from the Ingress resource, using ALB-specific annotations. Traffic is routed by URL path to each service:
 
 ```yaml
 apiVersion: networking.k8s.io/v1
@@ -1028,210 +1098,127 @@ kind: Ingress
 metadata:
   name: fifa-ingress
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /     # Rewrite paths for Streamlit
+    alb.ingress.kubernetes.io/scheme: internet-facing   # Public ALB
+    alb.ingress.kubernetes.io/target-type: ip           # Route to pod IPs
 spec:
-  ingressClassName: nginx                             # NGINX controller
+  ingressClassName: alb                                 # AWS Load Balancer Controller
   rules:
-  - host: fifa.local                                  # Virtual host
-    http:
+  - http:
       paths:
-      - path: /h2h                                    # Path: /h2h
+      - path: /h2h
         pathType: Prefix
         backend:
           service:
-            name: fifa-h2h-svc                        # Routes to fifa-h2h service
+            name: fifa-h2h-svc
             port:
               number: 80
-
-      - path: /groups                                 # Path: /groups
+      - path: /group-stage
         pathType: Prefix
         backend:
           service:
-            name: fifa-groups-svc                     # Routes to fifa-groups service
+            name: fifa-groups-svc
             port:
               number: 80
-
-      - path: /tournament                             # Path: /tournament
+      - path: /tournament
         pathType: Prefix
         backend:
           service:
-            name: fifa-tournament-svc                 # Routes to fifa-tournament service
+            name: fifa-tournament-svc
+            port:
+              number: 80
+      - path: /results
+        pathType: Prefix
+        backend:
+          service:
+            name: fifa-tournament-results-svc
+            port:
+              number: 80
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: fifa-main-page-svc
             port:
               number: 80
 ```
+
+**Path-Based Routing**:
+- `/h2h` → Head-to-Head predictor
+- `/group-stage` → Group stage predictor
+- `/tournament` → Tournament predictor
+- `/results` → Tournament results
+- `/` → Static main page (landing hub)
 
 **Ingress Features**:
-- **Host-Based Routing**: Uses virtual host `fifa.local` (update /etc/hosts or DNS)
-- **Path-Based Routing**: 
-  - `/h2h` → Head-to-Head predictor
-  - `/groups` → Group stage predictor
-  - `/tournament` → Tournament predictor
-- **Path Rewriting**: NGINX rewrites paths transparently for Streamlit compatibility
-- **Load Balancing**: Distributes traffic across replicas within each service
-
-**Accessing Services**:
-```bash
-# Port-forward each service for local testing
-kubectl port-forward svc/fifa-h2h-svc 8501:80
-kubectl port-forward svc/fifa-groups-svc 8502:80
-kubectl port-forward svc/fifa-tournament-svc 8503:80
-
-# Access in browser:
-# http://localhost:8501  → Head-to-Head Predictor
-# http://localhost:8502  → Group Stage Predictor
-# http://localhost:8503  → Tournament Predictor
-```
+- **ALB Provisioning**: The controller creates an internet-facing Application Load Balancer in the tagged public subnets.
+- **Path-Based Routing**: Routes requests to services by URL prefix.
+- **Load Balancing**: The ALB distributes traffic across replicas within each service.
+- **Health Checks**: Automatic target health checks for pods.
 
 ### Network Policies (Security)
 
-Network Policies enforce zero-trust networking by restricting pod-to-pod communication:
+A single `netpol.yaml` enforces zero-trust networking by restricting which pods can receive ingress traffic. It allows traffic only from the cluster's internal CIDR (`10.0.0.0/16`) and only on the app ports:
 
-#### Head-to-Head Network Policy
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: isolate-h2h
+  name: fifa-app-basic-netpol
 spec:
   podSelector:
-    matchLabels:
-      app: fifa-h2h
-  policyTypes:
-  - Ingress                                           # Only define ingress rules
-  ingress:
-  - from:
-    - podSelector:
-        matchLabels:
-          app: nginx-ingress                          # Only NGINX Ingress can send traffic
-```
-
-**Policy Details**:
-- **Selector**: Applies to pods labeled `app: fifa-h2h`
-- **Type**: Ingress-only (pods can initiate outbound connections)
-- **Source**: Only NGINX Ingress Controller pods can send traffic
-- **Effect**: All other pods are denied unless explicitly allowed
-
-#### Group Stage Network Policy
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: isolate-group
-spec:
-  podSelector:
-    matchLabels:
-      app: fifa-group
+    matchExpressions:
+    - key: app
+      operator: In
+      values: [fifa-h2h, fifa-group, fifa-tournament, fifa-tournament-results, fifa-main-page]
   policyTypes:
   - Ingress
   ingress:
   - from:
-    - podSelector:
-        matchLabels:
-          app: nginx-ingress
-```
-
-**Identical to Head-to-Head policy**, protecting the group stage service.
-
-#### Tournament Network Policy
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: isolate-tournament
-spec:
-  podSelector:
-    matchLabels:
-      app: fifa-tournament
-  policyTypes:
-  - Ingress
-  ingress:
-  - from:
-    - podSelector:
-        matchLabels:
-          app: nginx-ingress
+    - ipBlock:
+        cidr: 10.0.0.0/16
+    ports:
+    - protocol: TCP
+      port: 80
+    - protocol: TCP
+      port: 8501
 ```
 
 **Network Policy Benefits**:
-- ✅ **Pod Isolation**: Services cannot communicate directly with each other
-- ✅ **Attack Surface Reduction**: Only Ingress Controller can access pods
-- ✅ **Compliance**: Enforces least-privilege network access
+- ✅ **Pod Isolation**: Only allowed sources can reach the app pods
+- ✅ **Attack Surface Reduction**: Denies traffic from outside the cluster CIDR
+- ✅ **Least-Privilege**: Only app ports (80, 8501) are exposed
 - ✅ **Zero-Trust Networking**: Default deny with explicit allow rules
 
 ### Horizontal Pod Autoscaling (HPA)
 
-Kubernetes automatically scales deployments based on CPU utilization:
+`hpa.yaml` scales the Deployments based on CPU utilization:
 
-#### Head-to-Head HPA
 ```yaml
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: fifa-h2h-hpa
+  name: fifa-app-hpa
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: fifa-h2h                                    # Scales fifa-h2h Deployment
-  minReplicas: 1                                      # Minimum 1 pod
-  maxReplicas: 3                                      # Maximum 3 pods
+    name: fifa-h2h
+  minReplicas: 1
+  maxReplicas: 3
   metrics:
   - type: Resource
     resource:
       name: cpu
       target:
         type: Utilization
-        averageUtilization: 50                        # Scale up when CPU > 50%
+        averageUtilization: 50
 ```
 
 **HPA Behavior**:
-- **Metric**: CPU utilization percentage (requires Metrics Server)
-- **Scale-Up**: When average CPU exceeds 50%, add a replica
-- **Scale-Down**: When average CPU drops below target, remove a replica
-- **Range**: Between 1 and 3 replicas
-
-#### Group Stage HPA
-```yaml
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: fifa-group-hpa
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: fifa-group
-  minReplicas: 1
-  maxReplicas: 3
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 50
-```
-
-#### Tournament HPA
-```yaml
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: fifa-tournament-hpa
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: fifa-tournament
-  minReplicas: 1
-  maxReplicas: 3
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 50
-```
+- **Metric**: CPU utilization (requires Metrics Server)
+- **Scale-Up**: Adds a replica when average CPU exceeds the target
+- **Scale-Down**: Removes a replica when CPU drops below the target
+- **Range**: Between `minReplicas` and `maxReplicas`
 
 **Autoscaling Benefits**:
 - ✅ **Automatic Load Balancing**: Scales based on real-time demand
@@ -1245,7 +1232,7 @@ spec:
 kubectl get hpa -w
 
 # View detailed HPA metrics
-kubectl describe hpa fifa-h2h-hpa
+kubectl describe hpa fifa-app-hpa
 
 # Check current and desired replicas
 kubectl get deployment
@@ -1255,21 +1242,15 @@ kubectl get deployment
 
 #### Step 1: Apply Deployments
 ```bash
-kubectl apply -f kubernetes/groups-deployment.yaml
-kubectl apply -f kubernetes/h2h-deployment.yaml
-kubectl apply -f kubernetes/tournament-deployment.yaml
+kubectl apply -f kubernetes/deployments/
 ```
 
 #### Step 2: Apply Services
 ```bash
-kubectl apply -f kubernetes/services.yaml    # If you have a services file
-# Or create services manually:
-kubectl expose deployment fifa-h2h --name=fifa-h2h-svc --port=80 --target-port=8501 --type=ClusterIP
-kubectl expose deployment fifa-group --name=fifa-groups-svc --port=80 --target-port=8501 --type=ClusterIP
-kubectl expose deployment fifa-tournament --name=fifa-tournament-svc --port=80 --target-port=8501 --type=ClusterIP
+kubectl apply -f kubernetes/services.yaml
 ```
 
-#### Step 3: Apply Ingress
+#### Step 3: Apply Ingress (provisions the ALB)
 ```bash
 kubectl apply -f kubernetes/ingress.yaml
 ```
@@ -1292,7 +1273,7 @@ kubectl get deployments
 # Check services
 kubectl get svc
 
-# Check ingress
+# Check ingress (shows the ALB hostname once provisioned)
 kubectl get ingress
 
 # Check network policies
@@ -1311,14 +1292,71 @@ kubectl port-forward svc/fifa-h2h-svc 8501:80
 
 ### Production Recommendations
 
-- **Resource Requests/Limits**: Adjust CPU and memory based on actual workload (current: conservative 100m-500m CPU)
+- **Resource Requests/Limits**: Adjust CPU and memory based on actual workload (current: conservative 50m-500m CPU)
 - **Replica Strategy**: For production, increase `minReplicas` to 2-3 for high availability
 - **HPA Metrics**: Monitor with Prometheus and adjust `averageUtilization` threshold based on performance
 - **Persistent Storage**: Add PersistentVolumes if prediction results need to be stored across pod restarts
 - **Health Checks**: Add Liveness and Readiness probes to Deployments for automatic pod recovery
-- **Image Registry**: Use private Docker registry or ECR/ACR with imagePullSecrets for security
+- **Image Registry**: Images are already pulled from ECR; use IRSA/IAM authorization for cluster access to ECR
 - **Namespace Isolation**: Deploy services in separate namespaces and add namespace-level network policies
 - **Logging & Monitoring**: Integrate with ELK Stack, Prometheus, or cloud-native monitoring solutions
+
+---
+
+## 🔄 CI/CD Pipeline
+
+The system ships to production through an automated **GitOps pipeline** — Jenkins builds and publishes new images, updates the Kubernetes manifests in the repo, and ArgoCD rolls the changes out to EKS.
+
+```
+code push → Jenkins (build, test, push to ECR, update manifest) → ArgoCD (detect diff, sync) → live on EKS
+```
+
+### Continuous Integration (Jenkins)
+
+**Jenkins** runs on an **EC2 instance** and acts as the CI engine, triggered automatically by a **GitHub webhook** on every push:
+
+1. **Trigger**: A push to the GitHub repo fires a webhook that starts the Jenkins job.
+2. **Validate**: Basic validation tests run against the application code.
+3. **Build**: All **5 Docker images** are built, tagged with the Jenkins **build number** (`${BUILD_NUMBER}` → `:1`, `:2`, `:3`, ...).
+4. **Publish**: Jenkins logs into **Amazon ECR** and pushes all 5 images.
+5. **Update Manifests**: Jenkins uses `sed` to replace the image tags in the Kubernetes Deployment YAMLs (`kubernetes/deployments/*.yaml`).
+6. **Commit & Push**: Jenkins commits and pushes the manifest changes back to the same GitHub repo with `[skip ci]` in the commit message — preventing the webhook from re-triggering the pipeline.
+
+```bash
+# Example: update the image tag for the h2h deployment via sed
+sed -i "s|image: <AWS_ACCOUNT_ID>.dkr.ecr.ap-south-1.amazonaws.com/fifa/h2h:.*|image: <AWS_ACCOUNT_ID>.dkr.ecr.ap-south-1.amazonaws.com/fifa/h2h:${BUILD_NUMBER}|" \
+  kubernetes/deployments/h2h-deployment.yaml
+
+# Commit and push with [skip ci] to avoid re-triggering Jenkins
+git add kubernetes/
+git commit -m "Update image tags to build ${BUILD_NUMBER} [skip ci]"
+git push origin main
+```
+
+### Continuous Delivery (ArgoCD)
+
+**ArgoCD** implements GitOps continuous delivery — it continuously watches the **same GitHub repository's `kubernetes/` manifests** and keeps the **EKS cluster** in sync:
+
+1. **Watch**: ArgoCD monitors the `kubernetes/` directory in the repo for changes.
+2. **Detect Diff**: When Jenkins pushes updated image tags, ArgoCD detects the drift between the repo and the live cluster.
+3. **Sync**: ArgoCD automatically syncs the EKS cluster to match the repo — rolling out the new images.
+
+```bash
+# Register the application once (auto-sync enabled)
+argocd app create fifa-app \
+  --repo <github-repo-url> \
+  --path kubernetes \
+  --dest-server https://kubernetes.default.svc \
+  --sync-policy automated \
+  --auto-prune
+```
+
+**Pipeline Benefits**:
+- ✅ **Fully Automated**: Code push to live in one flow
+- ✅ **Immutable Deploys**: Each build number is a uniquely tagged image
+- ✅ **GitOps**: The repo is the single source of truth for cluster state
+- ✅ **Loop Prevention**: `[skip ci]` stops Jenkins from triggering itself
+- ✅ **Rollback Ready**: Reverting a manifest tag reverts the deployment
 
 ---
 
@@ -1362,8 +1400,3 @@ Potential improvements for future versions:
 
 *Crafted with ⚽ for the FIFA World Cup 2026 Prediction System*
 
-
-more changes to come and go and will go nad go andy arshavin
-life goes aon on and on ano on
-
-oliver glasner and its van persie
