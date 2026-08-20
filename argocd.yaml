@@ -1,0 +1,290 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  annotations:
+    argocd.argoproj.io/hydrate: hard
+  creationTimestamp: "2026-08-19T13:11:50Z"
+  generation: 427
+  name: fifa-wc-2026
+  namespace: argocd
+  resourceVersion: "314261"
+  uid: 0ed98af7-6530-4193-8409-c6859102e224
+spec:
+  destination:
+    namespace: default
+    server: https://kubernetes.default.svc
+  project: default
+  source:
+    path: kubernetes
+    repoURL: https://github.com/Narendra-619/FIFA-WC-2026.git
+    targetRevision: master
+    directory:
+      recurse: true
+status:
+  controllerNamespace: argocd
+  health:
+    lastTransitionTime: "2026-08-19T13:28:23Z"
+    status: Healthy
+  history:
+  - deployStartedAt: "2026-08-19T13:24:06Z"
+    deployedAt: "2026-08-19T13:24:07Z"
+    id: 0
+    initiatedBy:
+      username: admin
+    revision: 219e45d194fdb39de77b4fef1b0a0d7b8da4af0e
+    source:
+      path: kubernetes
+      repoURL: https://github.com/Narendra-619/FIFA-WC-2026.git
+      targetRevision: master
+  - deployStartedAt: "2026-08-19T13:25:52Z"
+    deployedAt: "2026-08-19T13:25:54Z"
+    id: 1
+    initiatedBy:
+      username: admin
+    revision: 219e45d194fdb39de77b4fef1b0a0d7b8da4af0e
+    source:
+      path: kubernetes
+      repoURL: https://github.com/Narendra-619/FIFA-WC-2026.git
+      targetRevision: master
+  - deployStartedAt: "2026-08-19T13:29:24Z"
+    deployedAt: "2026-08-19T13:29:25Z"
+    id: 2
+    initiatedBy:
+      username: admin
+    revision: 219e45d194fdb39de77b4fef1b0a0d7b8da4af0e
+    source:
+      path: kubernetes
+      repoURL: https://github.com/Narendra-619/FIFA-WC-2026.git
+      targetRevision: master
+  - deployStartedAt: "2026-08-20T09:26:08Z"
+    deployedAt: "2026-08-20T09:26:09Z"
+    id: 3
+    initiatedBy:
+      username: admin
+    revision: 5eb8ccda772713c1eb1d5bd2599547fb90ac7e43
+    source:
+      path: kubernetes
+      repoURL: https://github.com/Narendra-619/FIFA-WC-2026.git
+      targetRevision: master
+  operationState:
+    finishedAt: "2026-08-20T09:26:09Z"
+    message: successfully synced (all tasks run)
+    operation:
+      initiatedBy:
+        username: admin
+      retry: {}
+      sync:
+        revision: 5eb8ccda772713c1eb1d5bd2599547fb90ac7e43
+        source:
+          path: kubernetes
+          repoURL: https://github.com/Narendra-619/FIFA-WC-2026.git
+          targetRevision: master
+        syncStrategy:
+          hook: {}
+    phase: Succeeded
+    startedAt: "2026-08-20T09:26:08Z"
+    syncResult:
+      resources:
+      - group: networking.k8s.io
+        hookPhase: Running
+        kind: NetworkPolicy
+        message: networkpolicy.networking.k8s.io/fifa-app-basic-netpol unchanged
+        name: fifa-app-basic-netpol
+        namespace: default
+        status: Synced
+        syncPhase: Sync
+        version: v1
+      - group: ""
+        hookPhase: Running
+        kind: Service
+        message: service/fifa-h2h-svc unchanged
+        name: fifa-h2h-svc
+        namespace: default
+        status: Synced
+        syncPhase: Sync
+        version: v1
+      - group: ""
+        hookPhase: Running
+        kind: Service
+        message: service/fifa-tournament-results-svc unchanged
+        name: fifa-tournament-results-svc
+        namespace: default
+        status: Synced
+        syncPhase: Sync
+        version: v1
+      - group: ""
+        hookPhase: Running
+        kind: Service
+        message: service/fifa-tournament-svc unchanged
+        name: fifa-tournament-svc
+        namespace: default
+        status: Synced
+        syncPhase: Sync
+        version: v1
+      - group: ""
+        hookPhase: Running
+        kind: Service
+        message: service/fifa-groups-svc unchanged
+        name: fifa-groups-svc
+        namespace: default
+        status: Synced
+        syncPhase: Sync
+        version: v1
+      - group: ""
+        hookPhase: Running
+        kind: Service
+        message: service/fifa-main-page-svc unchanged
+        name: fifa-main-page-svc
+        namespace: default
+        status: Synced
+        syncPhase: Sync
+        version: v1
+      - group: autoscaling
+        hookPhase: Running
+        kind: HorizontalPodAutoscaler
+        message: horizontalpodautoscaler.autoscaling/fifa-tournament-results-hpa unchanged
+        name: fifa-tournament-results-hpa
+        namespace: default
+        status: Synced
+        syncPhase: Sync
+        version: v2
+      - group: autoscaling
+        hookPhase: Running
+        kind: HorizontalPodAutoscaler
+        message: horizontalpodautoscaler.autoscaling/fifa-main-page-hpa unchanged
+        name: fifa-main-page-hpa
+        namespace: default
+        status: Synced
+        syncPhase: Sync
+        version: v2
+      - group: autoscaling
+        hookPhase: Running
+        kind: HorizontalPodAutoscaler
+        message: horizontalpodautoscaler.autoscaling/fifa-group-hpa unchanged
+        name: fifa-group-hpa
+        namespace: default
+        status: Synced
+        syncPhase: Sync
+        version: v2
+      - group: autoscaling
+        hookPhase: Running
+        kind: HorizontalPodAutoscaler
+        message: horizontalpodautoscaler.autoscaling/fifa-tournament-hpa unchanged
+        name: fifa-tournament-hpa
+        namespace: default
+        status: Synced
+        syncPhase: Sync
+        version: v2
+      - group: autoscaling
+        hookPhase: Running
+        kind: HorizontalPodAutoscaler
+        message: horizontalpodautoscaler.autoscaling/fifa-h2h-hpa unchanged
+        name: fifa-h2h-hpa
+        namespace: default
+        status: Synced
+        syncPhase: Sync
+        version: v2
+      - group: networking.k8s.io
+        hookPhase: Running
+        kind: Ingress
+        message: ingress.networking.k8s.io/fifa-ingress unchanged
+        name: fifa-ingress
+        namespace: default
+        status: Synced
+        syncPhase: Sync
+        version: v1
+      revision: 5eb8ccda772713c1eb1d5bd2599547fb90ac7e43
+      source:
+        path: kubernetes
+        repoURL: https://github.com/Narendra-619/FIFA-WC-2026.git
+        targetRevision: master
+  reconciledAt: "2026-08-20T09:29:49Z"
+  resourceHealthSource: appTree
+  resources:
+  - kind: Service
+    name: fifa-groups-svc
+    namespace: default
+    status: Synced
+    version: v1
+  - kind: Service
+    name: fifa-h2h-svc
+    namespace: default
+    status: Synced
+    version: v1
+  - kind: Service
+    name: fifa-main-page-svc
+    namespace: default
+    status: Synced
+    version: v1
+  - kind: Service
+    name: fifa-tournament-results-svc
+    namespace: default
+    status: Synced
+    version: v1
+  - kind: Service
+    name: fifa-tournament-svc
+    namespace: default
+    status: Synced
+    version: v1
+  - group: autoscaling
+    kind: HorizontalPodAutoscaler
+    name: fifa-group-hpa
+    namespace: default
+    status: Synced
+    version: v2
+  - group: autoscaling
+    kind: HorizontalPodAutoscaler
+    name: fifa-h2h-hpa
+    namespace: default
+    status: Synced
+    version: v2
+  - group: autoscaling
+    kind: HorizontalPodAutoscaler
+    name: fifa-main-page-hpa
+    namespace: default
+    status: Synced
+    version: v2
+  - group: autoscaling
+    kind: HorizontalPodAutoscaler
+    name: fifa-tournament-hpa
+    namespace: default
+    status: Synced
+    version: v2
+  - group: autoscaling
+    kind: HorizontalPodAutoscaler
+    name: fifa-tournament-results-hpa
+    namespace: default
+    status: Synced
+    version: v2
+  - group: networking.k8s.io
+    kind: Ingress
+    name: fifa-ingress
+    namespace: default
+    status: Synced
+    version: v1
+  - group: networking.k8s.io
+    kind: NetworkPolicy
+    name: fifa-app-basic-netpol
+    namespace: default
+    status: Synced
+    version: v1
+  sourceHydrator: {}
+  sourceType: Directory
+  summary:
+    externalURLs:
+    - http://k8s-default-fifaingr-a7c2423016-1960367779.ap-south-1.elb.amazonaws.com/
+    - http://k8s-default-fifaingr-a7c2423016-1960367779.ap-south-1.elb.amazonaws.com/group-stage
+    - http://k8s-default-fifaingr-a7c2423016-1960367779.ap-south-1.elb.amazonaws.com/h2h
+    - http://k8s-default-fifaingr-a7c2423016-1960367779.ap-south-1.elb.amazonaws.com/results
+    - http://k8s-default-fifaingr-a7c2423016-1960367779.ap-south-1.elb.amazonaws.com/tournament
+  sync:
+    comparedTo:
+      destination:
+        namespace: default
+        server: https://kubernetes.default.svc
+      source:
+        path: kubernetes
+        repoURL: https://github.com/Narendra-619/FIFA-WC-2026.git
+        targetRevision: master
+    revision: 5eb8ccda772713c1eb1d5bd2599547fb90ac7e43
+    status: Synced
