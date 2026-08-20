@@ -52,6 +52,7 @@ Experience the FIFA World Cup 2026 Prediction System without any setup. Click an
 | 🔴 **Head-to-Head Predictor** | [fifa-wc-2026-head2head.streamlit.app](https://fifa-wc-2026-head2head.streamlit.app/) | Match outcome predictions between any two teams |
 | 🟦 **Group Stage Predictor** | [fifa-wc-2026-groupstages.streamlit.app](https://fifa-wc-2026-groupstages.streamlit.app/) | Group winner probabilities & advancement odds |
 | 🏆 **Tournament Winner Predictor** | [fifa-wc-2026-tournament.streamlit.app](https://fifa-wc-2026-tournament.streamlit.app/) | Championship & stage progression probabilities |
+| 📊 **Model Results** | [fifa-wc-2026-results-page.streamlit.app](https://fifa-wc-2026-results-page.streamlit.app/) | Shows how the prediction model performed |
 
 **No installation required!** All applications are hosted on Streamlit Cloud and fully functional online.
 
@@ -943,7 +944,9 @@ The FIFA World Cup 2026 Prediction System runs as **five** containerized compone
 | **h2h** | Head-to-Head match outcome predictions |
 | **group-stage** | Group winner probabilities & advancement odds |
 | **tournament** | Championship & stage progression probabilities |
-| **tournament-results** | Pre-computed tournament results viewer |
+| **tournament-results** | Displays model performance and prediction results. |
+
+The **main page** (`index.html`, served via nginx) acts as a landing hub for the system — it links out to each of the four prediction/results paths (`/h2h`, `/group-stage`, `/tournament`, `/results`), giving users a single entry point to navigate the full application.
 
 ### Container Images on Amazon ECR
 
@@ -968,6 +971,7 @@ All five images are built, tagged, and pushed to **Amazon ECR** (account `<AWS_A
 - **Amazon EKS** cluster (provisioned by Terraform)
 - **kubectl** CLI configured with cluster access
 - **AWS Load Balancer Controller** installed (provisions the ALB)
+- **Metrics Server** installed (required for HPA to read CPU utilization — install via `kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml`)
 
 #### Cluster Access
 ```bash
@@ -1183,6 +1187,8 @@ spec:
       port: 8501
 ```
 
+*Note: confirm this matches what's actually applied on the cluster — an earlier, more permissive version without the `ipBlock` restriction may still be in use; update this example to match whichever is currently deployed.*
+
 **Network Policy Benefits**:
 - ✅ **Pod Isolation**: Only allowed sources can reach the app pods
 - ✅ **Attack Surface Reduction**: Denies traffic from outside the cluster CIDR
@@ -1213,6 +1219,8 @@ spec:
         type: Utilization
         averageUtilization: 50
 ```
+
+*Note: the example above shows the HPA for `fifa-h2h`; apply an equivalent HPA per Deployment (or confirm which Deployments currently have autoscaling configured) so scaling coverage is accurate across all five services.*
 
 **HPA Behavior**:
 - **Metric**: CPU utilization (requires Metrics Server)
@@ -1315,6 +1323,8 @@ code push → Jenkins (build, test, push to ECR, update manifest) → ArgoCD (de
 
 **Jenkins** runs on an **EC2 instance** and acts as the CI engine, triggered automatically by a **GitHub webhook** on every push:
 
+**Prerequisite (one-time setup)**: Jenkins needs a GitHub credential to push manifest updates back to the repo. Create a GitHub Personal Access Token (classic, `repo` scope) and add it to Jenkins under Manage Jenkins → Credentials as a 'Username with password' entry with ID `github-creds`.
+
 1. **Trigger**: A push to the GitHub repo fires a webhook that starts the Jenkins job.
 2. **Validate**: Basic validation tests run against the application code.
 3. **Build**: All **5 Docker images** are built, tagged with the Jenkins **build number** (`${BUILD_NUMBER}` → `:1`, `:2`, `:3`, ...).
@@ -1336,6 +1346,12 @@ git push origin main
 ### Continuous Delivery (ArgoCD)
 
 **ArgoCD** implements GitOps continuous delivery — it continuously watches the **same GitHub repository's `kubernetes/` manifests** and keeps the **EKS cluster** in sync:
+
+**Install ArgoCD** (one-time setup) into the cluster via Helm:
+```bash
+helm repo add argo https://argoproj.github.io/argo-helm
+helm install argocd argo/argo-cd -n argocd --create-namespace
+```
 
 1. **Watch**: ArgoCD monitors the `kubernetes/` directory in the repo for changes.
 2. **Detect Diff**: When Jenkins pushes updated image tags, ArgoCD detects the drift between the repo and the live cluster.
