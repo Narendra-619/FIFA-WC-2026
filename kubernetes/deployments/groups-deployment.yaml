@@ -16,7 +16,7 @@ spec:
         app: fifa-group
     spec:
       containers:
-      - image: 276096488420.dkr.ecr.ap-south-1.amazonaws.com/fifa/group-stage:9
+      - image: 276096488420.dkr.ecr.ap-south-1.amazonaws.com/fifa/group-stage:11
         name: fifa-groups
         ports:
         - containerPort: 8501

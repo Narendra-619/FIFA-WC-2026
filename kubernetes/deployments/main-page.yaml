@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: fifa-main-page
-          image: 276096488420.dkr.ecr.ap-south-1.amazonaws.com/fifa/main-page:9
+          image: 276096488420.dkr.ecr.ap-south-1.amazonaws.com/fifa/main-page:11
           ports:
             - containerPort: 80
           resources:
