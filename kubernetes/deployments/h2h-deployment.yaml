@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: fifa-h2h
-        image: 276096488420.dkr.ecr.ap-south-1.amazonaws.com/fifa/h2h:7
+        image: 276096488420.dkr.ecr.ap-south-1.amazonaws.com/fifa/h2h:9
         ports:
         - containerPort: 8501
 

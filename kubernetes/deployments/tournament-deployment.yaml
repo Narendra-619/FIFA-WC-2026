@@ -16,7 +16,7 @@ spec:
         app: fifa-tournament
     spec:
       containers:
-      - image: 276096488420.dkr.ecr.ap-south-1.amazonaws.com/fifa/tournament:7
+      - image: 276096488420.dkr.ecr.ap-south-1.amazonaws.com/fifa/tournament:9
         name: fifa-tournament
         ports:
         - containerPort: 8501
